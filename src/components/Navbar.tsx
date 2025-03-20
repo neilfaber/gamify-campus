@@ -1,15 +1,17 @@
 
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, LogIn, UserCircle } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, LogIn, LogOut, UserCircle } from "lucide-react";
 import { CustomButton } from "./ui/custom-button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const navigation = [
     { name: "Home", href: "/" },
@@ -45,6 +47,19 @@ const Navbar = () => {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const handleAuthClick = () => {
+    if (user) {
+      navigate("/profile");
+    } else {
+      navigate("/auth");
+    }
+  };
 
   return (
     <nav
@@ -85,22 +100,32 @@ const Navbar = () => {
           </div>
           
           <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
-              <Link to="/profile">
+            {user ? (
+              <>
+                <Link to="/profile">
+                  <CustomButton
+                    variant="ghost"
+                    size="sm"
+                    iconLeft={<UserCircle className="h-5 w-5" />}
+                  >
+                    Profile
+                  </CustomButton>
+                </Link>
                 <CustomButton
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  iconLeft={<UserCircle className="h-5 w-5" />}
+                  iconLeft={<LogOut className="h-4 w-4" />}
+                  onClick={handleSignOut}
                 >
-                  Profile
+                  Sign Out
                 </CustomButton>
-              </Link>
+              </>
             ) : (
               <CustomButton
                 variant="primary"
                 size="sm"
                 iconLeft={<LogIn className="h-4 w-4" />}
-                onClick={() => setIsLoggedIn(true)}
+                onClick={handleAuthClick}
               >
                 Sign In
               </CustomButton>
@@ -149,24 +174,35 @@ const Navbar = () => {
           ))}
           
           <div className="mt-auto">
-            {isLoggedIn ? (
-              <Link to="/profile" className="block w-full">
+            {user ? (
+              <div className="space-y-3">
+                <Link to="/profile" className="block w-full">
+                  <CustomButton
+                    variant="ghost"
+                    size="lg"
+                    className="w-full justify-start"
+                    iconLeft={<UserCircle className="h-5 w-5" />}
+                  >
+                    Profile
+                  </CustomButton>
+                </Link>
                 <CustomButton
-                  variant="ghost"
+                  variant="outline"
                   size="lg"
-                  className="w-full justify-start"
-                  iconLeft={<UserCircle className="h-5 w-5" />}
+                  className="w-full"
+                  iconLeft={<LogOut className="h-5 w-5" />}
+                  onClick={handleSignOut}
                 >
-                  Profile
+                  Sign Out
                 </CustomButton>
-              </Link>
+              </div>
             ) : (
               <CustomButton
                 variant="primary"
                 size="lg"
                 className="w-full"
                 iconLeft={<LogIn className="h-5 w-5" />}
-                onClick={() => setIsLoggedIn(true)}
+                onClick={handleAuthClick}
               >
                 Sign In
               </CustomButton>

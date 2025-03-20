@@ -1,44 +1,197 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import { Award, Calendar, Camera, Edit, Mail, MapPin, Phone, Save, Trophy, User, Users } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
-// Sample user data
-const userData = {
-  name: "Alex Johnson",
-  email: "alex.johnson@university.edu",
-  phone: "+1 (555) 123-4567",
-  location: "North Campus",
-  avatar: "https://i.pravatar.cc/300?img=8",
-  bio: "Computer Science major with a passion for basketball and tennis. Looking for competitive matches on weekends.",
-  sports: [
-    { name: "Basketball", level: "Advanced", years: 4 },
-    { name: "Tennis", level: "Intermediate", years: 2 },
-    { name: "Volleyball", level: "Beginner", years: 1 }
-  ],
-  availability: {
-    weekdays: ["Evening"],
-    weekends: ["Morning", "Afternoon"]
-  },
-  achievements: [
-    { title: "Basketball Tournament Winner", date: "Mar 2023", icon: <Trophy className="h-5 w-5" /> },
-    { title: "Tennis Singles Finalist", date: "Feb 2023", icon: <Award className="h-5 w-5" /> },
-    { title: "Team Captain - Slam Dunkers", date: "Jan 2023", icon: <Users className="h-5 w-5" /> }
-  ],
-  stats: {
+interface ProfileData {
+  id: string;
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const Profile = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"info" | "stats" | "achievements">("info");
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    username: "",
+    full_name: "",
+    bio: "",
+    phone: "+1 (555) 123-4567", // Sample data
+    location: "North Campus", // Sample data
+  });
+
+  // Sample data for stats and achievements
+  const sampleStats = {
     matchesPlayed: 35,
     wins: 22,
     losses: 13,
     teamsJoined: 2,
     certificatesEarned: 4
-  }
-};
+  };
 
-const Profile = () => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"info" | "stats" | "achievements">("info");
+  const sampleAchievements = [
+    { title: "Basketball Tournament Winner", date: "Mar 2023", icon: <Trophy className="h-5 w-5" /> },
+    { title: "Tennis Singles Finalist", date: "Feb 2023", icon: <Award className="h-5 w-5" /> },
+    { title: "Team Captain - Slam Dunkers", date: "Jan 2023", icon: <Users className="h-5 w-5" /> }
+  ];
+
+  const sampleSports = [
+    { name: "Basketball", level: "Advanced", years: 4 },
+    { name: "Tennis", level: "Intermediate", years: 2 },
+    { name: "Volleyball", level: "Beginner", years: 1 }
+  ];
+
+  const sampleAvailability = {
+    weekdays: ["Evening"],
+    weekends: ["Morning", "Afternoon"]
+  };
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+  }, [user, navigate]);
+
+  // Fetch profile data
+  useEffect(() => {
+    async function getProfile() {
+      try {
+        setLoading(true);
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setProfileData(data);
+          setFormData({
+            username: data.username || '',
+            full_name: data.full_name || '',
+            bio: data.bio || '',
+            phone: "+1 (555) 123-4567", // Sample data
+            location: "North Campus", // Sample data
+          });
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error fetching profile",
+          description: error.message || "Could not fetch profile data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    getProfile();
+  }, [user, toast]);
+
+  const handleSaveProfile = async () => {
+    try {
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: formData.username,
+          full_name: formData.full_name,
+          bio: formData.bio,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated.",
+      });
+
+      // Update local state
+      if (profileData) {
+        setProfileData({
+          ...profileData,
+          username: formData.username,
+          full_name: formData.full_name,
+          bio: formData.bio,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile",
+        description: error.message || "Could not update profile",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="pt-20 flex items-center justify-center min-h-screen">
+          <div className="animate-spin h-12 w-12 border-4 border-campus-blue border-t-transparent rounded-full"></div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!user || !profileData) {
+    return (
+      <MainLayout>
+        <div className="pt-20 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-campus-neutral-700">Profile not found</h2>
+            <p className="mt-2 text-campus-neutral-500">Please sign in to view your profile</p>
+            <CustomButton 
+              variant="primary" 
+              className="mt-4"
+              onClick={() => navigate("/auth")}
+            >
+              Go to Sign In
+            </CustomButton>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
   
   return (
     <MainLayout>
@@ -49,8 +202,8 @@ const Profile = () => {
             <div className="relative mb-4 md:mb-0 md:mr-6">
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white bg-white">
                 <img
-                  src={userData.avatar}
-                  alt={userData.name}
+                  src={profileData.avatar_url || "https://i.pravatar.cc/300?img=8"}
+                  alt={profileData.full_name}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -60,8 +213,8 @@ const Profile = () => {
             </div>
             
             <div className="text-center md:text-left">
-              <h1 className="text-3xl font-bold">{userData.name}</h1>
-              <p className="text-blue-100 max-w-xl mt-2">{userData.bio}</p>
+              <h1 className="text-3xl font-bold">{profileData.full_name || "New User"}</h1>
+              <p className="text-blue-100 max-w-xl mt-2">{profileData.bio || "No bio yet. Edit your profile to add one!"}</p>
             </div>
             
             <div className="mt-6 md:mt-0 md:ml-auto">
@@ -69,7 +222,13 @@ const Profile = () => {
                 variant={isEditing ? "secondary" : "outline"}
                 className={isEditing ? "" : "bg-white/10 border-white/30 text-white hover:bg-white/20"}
                 iconLeft={isEditing ? <Save className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => {
+                  if (isEditing) {
+                    handleSaveProfile();
+                  } else {
+                    setIsEditing(true);
+                  }
+                }}
               >
                 {isEditing ? "Save Profile" : "Edit Profile"}
               </CustomButton>
@@ -131,14 +290,24 @@ const Profile = () => {
                     <Mail className="h-5 w-5 text-campus-neutral-400 mt-0.5 mr-3" />
                     <div>
                       <div className="text-sm text-campus-neutral-500">Email</div>
+                      <div className="text-campus-neutral-900">{user.email}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <User className="h-5 w-5 text-campus-neutral-400 mt-0.5 mr-3" />
+                    <div>
+                      <div className="text-sm text-campus-neutral-500">Username</div>
                       {isEditing ? (
-                        <input
-                          type="email"
-                          className="mt-1 block w-full px-3 py-2 border border-campus-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-campus-blue"
-                          defaultValue={userData.email}
+                        <Input
+                          type="text"
+                          name="username"
+                          className="mt-1 block w-full"
+                          value={formData.username}
+                          onChange={handleInputChange}
                         />
                       ) : (
-                        <div className="text-campus-neutral-900">{userData.email}</div>
+                        <div className="text-campus-neutral-900">{profileData.username}</div>
                       )}
                     </div>
                   </div>
@@ -148,13 +317,15 @@ const Profile = () => {
                     <div>
                       <div className="text-sm text-campus-neutral-500">Phone</div>
                       {isEditing ? (
-                        <input
+                        <Input
                           type="tel"
-                          className="mt-1 block w-full px-3 py-2 border border-campus-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-campus-blue"
-                          defaultValue={userData.phone}
+                          name="phone"
+                          className="mt-1 block w-full"
+                          value={formData.phone}
+                          onChange={handleInputChange}
                         />
                       ) : (
-                        <div className="text-campus-neutral-900">{userData.phone}</div>
+                        <div className="text-campus-neutral-900">{formData.phone}</div>
                       )}
                     </div>
                   </div>
@@ -164,13 +335,15 @@ const Profile = () => {
                     <div>
                       <div className="text-sm text-campus-neutral-500">Location</div>
                       {isEditing ? (
-                        <input
+                        <Input
                           type="text"
-                          className="mt-1 block w-full px-3 py-2 border border-campus-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-campus-blue"
-                          defaultValue={userData.location}
+                          name="location"
+                          className="mt-1 block w-full"
+                          value={formData.location}
+                          onChange={handleInputChange}
                         />
                       ) : (
-                        <div className="text-campus-neutral-900">{userData.location}</div>
+                        <div className="text-campus-neutral-900">{formData.location}</div>
                       )}
                     </div>
                   </div>
@@ -189,7 +362,7 @@ const Profile = () => {
                           key={`weekday-${time}`}
                           className={cn(
                             "inline-flex items-center px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors",
-                            userData.availability.weekdays.includes(time)
+                            sampleAvailability.weekdays.includes(time)
                               ? "bg-campus-blue text-white"
                               : "bg-campus-neutral-100 text-campus-neutral-600 hover:bg-campus-neutral-200"
                           )}
@@ -198,7 +371,7 @@ const Profile = () => {
                             <input
                               type="checkbox"
                               className="sr-only"
-                              defaultChecked={userData.availability.weekdays.includes(time)}
+                              defaultChecked={sampleAvailability.weekdays.includes(time)}
                             />
                           )}
                           {time}
@@ -215,7 +388,7 @@ const Profile = () => {
                           key={`weekend-${time}`}
                           className={cn(
                             "inline-flex items-center px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors",
-                            userData.availability.weekends.includes(time)
+                            sampleAvailability.weekends.includes(time)
                               ? "bg-campus-blue text-white"
                               : "bg-campus-neutral-100 text-campus-neutral-600 hover:bg-campus-neutral-200"
                           )}
@@ -224,7 +397,7 @@ const Profile = () => {
                             <input
                               type="checkbox"
                               className="sr-only"
-                              defaultChecked={userData.availability.weekends.includes(time)}
+                              defaultChecked={sampleAvailability.weekends.includes(time)}
                             />
                           )}
                           {time}
@@ -242,18 +415,21 @@ const Profile = () => {
                 <h2 className="text-lg font-semibold text-campus-neutral-900 mb-4">About Me</h2>
                 
                 {isEditing ? (
-                  <textarea
-                    className="block w-full px-3 py-2 border border-campus-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-campus-blue mb-4"
+                  <Textarea
+                    name="bio"
+                    className="block w-full mb-4"
                     rows={4}
-                    defaultValue={userData.bio}
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    placeholder="Tell us about yourself and your sports interests..."
                   />
                 ) : (
-                  <p className="text-campus-neutral-700 mb-6">{userData.bio}</p>
+                  <p className="text-campus-neutral-700 mb-6">{profileData.bio || "No bio yet. Edit your profile to add one!"}</p>
                 )}
                 
                 <h3 className="text-md font-semibold text-campus-neutral-900 mb-3">Sports & Skill Level</h3>
                 
-                {userData.sports.map((sport, index) => (
+                {sampleSports.map((sport, index) => (
                   <div 
                     key={sport.name}
                     className={cn("p-4 border border-campus-neutral-200 rounded-lg", index > 0 && "mt-4")}
@@ -280,9 +456,9 @@ const Profile = () => {
                       {isEditing ? (
                         <div className="flex items-center">
                           <span className="mr-2">Years of experience:</span>
-                          <input
+                          <Input
                             type="number"
-                            className="block w-16 px-2 py-1 text-sm border border-campus-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-campus-blue focus:border-campus-blue"
+                            className="block w-16 px-2 py-1 text-sm"
                             defaultValue={sport.years}
                             min="0"
                             max="20"
@@ -313,11 +489,11 @@ const Profile = () => {
           <div className="animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
               {[
-                { label: "Matches Played", value: userData.stats.matchesPlayed, color: "blue" },
-                { label: "Wins", value: userData.stats.wins, color: "green" },
-                { label: "Losses", value: userData.stats.losses, color: "red" },
-                { label: "Teams Joined", value: userData.stats.teamsJoined, color: "purple" },
-                { label: "Certificates", value: userData.stats.certificatesEarned, color: "orange" }
+                { label: "Matches Played", value: sampleStats.matchesPlayed, color: "blue" },
+                { label: "Wins", value: sampleStats.wins, color: "green" },
+                { label: "Losses", value: sampleStats.losses, color: "red" },
+                { label: "Teams Joined", value: sampleStats.teamsJoined, color: "purple" },
+                { label: "Certificates", value: sampleStats.certificatesEarned, color: "orange" }
               ].map((stat, index) => (
                 <div
                   key={stat.label}
@@ -347,7 +523,7 @@ const Profile = () => {
               <h2 className="text-lg font-semibold text-campus-neutral-900 mb-6">Achievements & Certificates</h2>
               
               <div className="space-y-6">
-                {userData.achievements.map((achievement, index) => (
+                {sampleAchievements.map((achievement, index) => (
                   <div
                     key={index}
                     className="flex items-start p-5 border border-campus-neutral-200 rounded-lg hover:shadow-sm transition-shadow"
