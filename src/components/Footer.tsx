@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Instagram, Twitter, Facebook, Mail } from "lucide-react";
 
@@ -42,7 +41,11 @@ const Footer = () => {
           {/* Brand column */}
           <div>
             <Link to="/" className="inline-block">
-              <span className="text-2xl font-bold bg-gradient-to-r from-campus-blue to-campus-blue-dark bg-clip-text text-transparent">CampusPlay</span>
+              <img
+                src="/logo.png"
+                alt="CampusPlay Logo"
+                className="h-16 w-auto"
+              />
             </Link>
             <p className="mt-4 text-sm text-campus-neutral-600 max-w-xs">
               Revolutionizing campus sports with intelligent matchmaking, scheduling, and digital recognition.
@@ -91,7 +94,7 @@ const Footer = () => {
         
         <div className="mt-12 pt-8 border-t border-campus-neutral-200">
           <p className="text-sm text-campus-neutral-500 text-center">
-            &copy; {currentYear} CampusPlay. All rights reserved.
+            &copy; {currentYear} Tournify. All rights reserved.
           </p>
         </div>
       </div>

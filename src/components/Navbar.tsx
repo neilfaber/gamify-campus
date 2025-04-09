@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, LogIn, UserCircle } from "lucide-react";
@@ -57,7 +56,11 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-campus-blue to-campus-blue-dark bg-clip-text text-transparent">CampusPlay</span>
+              <img
+                src="/logo.png"
+                alt="CampusPlay Logo"
+                className="h-20 w-auto"
+              />
             </Link>
           </div>
           
