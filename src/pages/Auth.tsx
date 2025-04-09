@@ -45,6 +45,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState<"signIn" | "signUp">("signIn");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
@@ -69,42 +70,71 @@ const Auth = () => {
 
   // If user is already logged in, redirect to profile
   if (user) {
+    console.log("User already logged in, redirecting to profile");
     navigate("/profile");
     return null;
   }
 
   const handleSignIn = async (data: SignInFormValues) => {
-    const { error } = await signIn(data.email, data.password);
-    
-    if (error) {
+    try {
+      setIsSubmitting(true);
+      console.log("Sign in attempt with:", data.email);
+      const { error } = await signIn(data.email, data.password);
+      
+      if (error) {
+        console.error("Sign in error:", error);
+        toast({
+          title: "Sign in failed",
+          description: error.message || "Invalid email or password",
+          variant: "destructive",
+        });
+      } else {
+        navigate("/profile");
+      }
+    } catch (err) {
+      console.error("Unexpected sign in error:", err);
       toast({
-        title: "Sign in failed",
-        description: error.message,
+        title: "An unexpected error occurred",
+        description: "Please try again later",
         variant: "destructive",
       });
-    } else {
-      navigate("/profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleSignUp = async (data: SignUpFormValues) => {
-    const { error } = await signUp(data.email, data.password, {
-      full_name: data.fullName,
-      preferred_username: data.username,
-    });
-    
-    if (error) {
+    try {
+      setIsSubmitting(true);
+      console.log("Sign up attempt with:", data.email);
+      const { error } = await signUp(data.email, data.password, {
+        full_name: data.fullName,
+        preferred_username: data.username,
+      });
+      
+      if (error) {
+        console.error("Sign up error:", error);
+        toast({
+          title: "Sign up failed",
+          description: error.message || "Could not create account",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Account created",
+          description: "Please check your email to confirm your account",
+        });
+        setActiveTab("signIn");
+      }
+    } catch (err) {
+      console.error("Unexpected sign up error:", err);
       toast({
-        title: "Sign up failed",
-        description: error.message,
+        title: "An unexpected error occurred",
+        description: "Please try again later",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Account created",
-        description: "Please check your email to confirm your account",
-      });
-      setActiveTab("signIn");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -116,7 +146,7 @@ const Auth = () => {
           <CardDescription>Enter your details to get started</CardDescription>
         </CardHeader>
         
-        <Tabs defaultValue={activeTab} onValueChange={(value) => setActiveTab(value as "signIn" | "signUp")} className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "signIn" | "signUp")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signIn">Sign In</TabsTrigger>
             <TabsTrigger value="signUp">Sign Up</TabsTrigger>
@@ -160,8 +190,8 @@ const Auth = () => {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full" disabled={signInForm.formState.isSubmitting}>
-                    {signInForm.formState.isSubmitting ? "Signing in..." : "Sign In"}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
               </Form>
@@ -240,8 +270,8 @@ const Auth = () => {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full" disabled={signUpForm.formState.isSubmitting}>
-                    {signUpForm.formState.isSubmitting ? "Creating account..." : "Sign Up"}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Creating account..." : "Sign Up"}
                   </Button>
                 </form>
               </Form>
@@ -257,6 +287,7 @@ const Auth = () => {
             <button 
               onClick={() => setActiveTab(activeTab === "signIn" ? "signUp" : "signIn")}
               className="text-primary underline-offset-4 transition-colors hover:underline"
+              type="button"
             >
               {activeTab === "signIn" ? "Sign up" : "Sign in"}
             </button>

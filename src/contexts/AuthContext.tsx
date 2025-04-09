@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -61,25 +63,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     setIsLoading(true);
-    const response = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata,
-      },
-    });
-    setIsLoading(false);
-    return response;
+    try {
+      console.log("Attempting signup with:", email);
+      const response = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+        },
+      });
+      console.log("Signup response:", response);
+      setIsLoading(false);
+      return response;
+    } catch (error) {
+      console.error("Signup error:", error);
+      setIsLoading(false);
+      return { error, data: null };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    const response = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setIsLoading(false);
-    return response;
+    try {
+      console.log("Attempting signin with:", email);
+      const response = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      console.log("Signin response:", response);
+      setIsLoading(false);
+      return response;
+    } catch (error) {
+      console.error("Signin error:", error);
+      setIsLoading(false);
+      return { error, data: null };
+    }
   };
 
   const signOut = async () => {
