@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isAdmin: boolean;
   signUp: (email: string, password: string, metadata?: any) => Promise<{
     error: any | null;
     data: any | null;
@@ -25,7 +26,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
+
+  const checkAdminRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('has_role', {
+        _user_id: userId,
+        _role: 'admin'
+      });
+      
+      if (error) {
+        console.error("Error checking admin role:", error);
+        return false;
+      }
+      
+      setIsAdmin(!!data);
+      return !!data;
+    } catch (error) {
+      console.error("Exception checking admin role:", error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -34,6 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("Auth state changed:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          checkAdminRole(session.user.id);
+        } else {
+          setIsAdmin(false);
+        }
+        
         setIsLoading(false);
         
         if (event === 'SIGNED_IN') {
@@ -55,6 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        checkAdminRole(session.user.id);
+      }
+      
       setIsLoading(false);
     });
 
@@ -91,6 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
       console.log("Signin response:", response);
+      
+      if (response.data.user) {
+        await checkAdminRole(response.data.user.id);
+      }
+      
       setIsLoading(false);
       return response;
     } catch (error) {
@@ -103,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setIsLoading(true);
     await supabase.auth.signOut();
+    setIsAdmin(false);
     setIsLoading(false);
   };
 
@@ -112,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         isLoading,
+        isAdmin,
         signUp,
         signIn,
         signOut,

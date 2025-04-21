@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogIn, LogOut, UserCircle } from "lucide-react";
+import { Menu, X, LogIn, LogOut, UserCircle, Settings } from "lucide-react";
 import { CustomButton } from "./ui/custom-button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +10,7 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const navigation = [
@@ -102,6 +102,17 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <CustomButton
+                      variant="ghost"
+                      size="sm"
+                      iconLeft={<Settings className="h-5 w-5" />}
+                    >
+                      Admin
+                    </CustomButton>
+                  </Link>
+                )}
                 <Link to="/profile">
                   <CustomButton
                     variant="ghost"
@@ -176,6 +187,18 @@ const Navbar = () => {
           <div className="mt-auto">
             {user ? (
               <div className="space-y-3">
+                {isAdmin && (
+                  <Link to="/admin" className="block w-full">
+                    <CustomButton
+                      variant="ghost"
+                      size="lg"
+                      className="w-full justify-start"
+                      iconLeft={<Settings className="h-5 w-5" />}
+                    >
+                      Admin Panel
+                    </CustomButton>
+                  </Link>
+                )}
                 <Link to="/profile" className="block w-full">
                   <CustomButton
                     variant="ghost"
