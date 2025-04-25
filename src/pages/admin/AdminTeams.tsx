@@ -6,6 +6,11 @@ import { useState } from "react";
 import { Search, Users } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
 
+interface TeamLeader {
+  username: string | null;
+  full_name: string | null;
+}
+
 interface Team {
   id: string;
   name: string;
@@ -14,20 +19,15 @@ interface Team {
   leader_id: string;
   created_at: string;
   logo_url: string | null;
-  leader: {
-    username: string | null;
-    full_name: string | null;
-  };
-  members: {
-    count: number;
-  };
+  leader: TeamLeader | null;
+  members_count: number;
 }
 
 const AdminTeams = () => {
   const [searchQuery, setSearchQuery] = useState("");
   
   // Fetch teams
-  const { data: teams = [], isLoading } = useQuery({
+  const { data: teamsData = [], isLoading } = useQuery({
     queryKey: ["admin-teams"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -35,23 +35,25 @@ const AdminTeams = () => {
         .select(`
           *,
           members:team_members(count),
-          leader:leader_id(username, full_name)
+          leader_profile:leader_id(username, full_name)
         `)
         .order("created_at", { ascending: false });
       
       if (error) throw error;
       
-      return (data as Team[]).map(team => ({
+      // Transform the data to match the Team interface
+      const transformedData: Team[] = (data || []).map((team: any) => ({
         ...team,
-        members: {
-          count: team.members.length
-        }
+        members_count: team.members?.[0]?.count || 0,
+        leader: team.leader_profile?.[0] || null
       }));
+      
+      return transformedData;
     },
   });
   
   // Filter teams by search
-  const filteredTeams = teams.filter((team) => {
+  const filteredTeams = teamsData.filter((team) => {
     if (!searchQuery) return true;
     
     const searchLower = searchQuery.toLowerCase();
@@ -135,14 +137,14 @@ const AdminTeams = () => {
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-1.5 text-campus-neutral-400" />
                         <span className="text-sm text-campus-neutral-500">
-                          {team.members.count} member{team.members.count !== 1 ? 's' : ''}
+                          {team.members_count} member{team.members_count !== 1 ? 's' : ''}
                         </span>
                       </div>
                       
                       <CustomButton
                         variant="outline"
                         size="sm"
-                        onClick={() => alert(`View team ${team.id}`)}
+                        onClick={() => window.location.href = `/teams/${team.id}`}
                       >
                         View Details
                       </CustomButton>

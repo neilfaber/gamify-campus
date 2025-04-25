@@ -7,6 +7,11 @@ import { CustomButton } from "@/components/ui/custom-button";
 import { Search, Calendar, MapPin, Clock, Users, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface MatchCreator {
+  username: string | null;
+  full_name: string | null;
+}
+
 interface Match {
   id: string;
   sport: string;
@@ -16,13 +21,9 @@ interface Match {
   type: string;
   status: string;
   created_at: string | null;
-  participants: {
-    count: number;
-  };
-  creator: {
-    username: string | null;
-    full_name: string | null;
-  } | null;
+  created_by: string;
+  participants_count: number;
+  creator: MatchCreator | null;
 }
 
 const AdminMatches = () => {
@@ -31,7 +32,7 @@ const AdminMatches = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   // Fetch matches
-  const { data: matches = [], isLoading } = useQuery({
+  const { data: matchesData = [], isLoading } = useQuery({
     queryKey: ["admin-matches"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -39,29 +40,25 @@ const AdminMatches = () => {
         .select(`
           *,
           participants:match_participants(count),
-          creator:created_by(
-            profiles(username, full_name)
-          )
+          creator_profile:created_by(username, full_name)
         `)
         .order("date", { ascending: false });
       
-      if (error)  throw error;
+      if (error) throw error;
       
-      return (data as Match[]).map(match => ({
+      // Transform the data to match the Match interface
+      const transformedData: Match[] = (data || []).map((match: any) => ({
         ...match,
-        participants: {
-          count: match.participants.length
-        },
-        creator: match.creator ? {
-          username: match.creator.profiles[0]?.username || null,
-          full_name: match.creator.profiles[0]?.full_name || null,
-        } : null
+        participants_count: match.participants?.[0]?.count || 0,
+        creator: match.creator_profile?.[0] || null
       }));
+      
+      return transformedData;
     },
   });
   
   // Filter and sort matches
-  const filteredMatches = matches.filter((match) => {
+  const filteredMatches = matchesData.filter((match) => {
     // Filter by search query
     const matchesSearch = !searchQuery || 
       match.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -175,7 +172,7 @@ const AdminMatches = () => {
                         <CustomButton
                           variant="outline"
                           size="sm"
-                          onClick={() => alert(`View match details for ${match.id}`)}
+                          onClick={() => window.location.href = `/matchmaking/${match.id}`}
                         >
                           View Details
                         </CustomButton>
@@ -206,7 +203,7 @@ const AdminMatches = () => {
                       
                       <div className="flex items-center text-campus-neutral-500 text-sm">
                         <Users className="h-4 w-4 mr-1.5 text-campus-neutral-400" />
-                        <span>{match.participants.count} participant{match.participants.count !== 1 ? 's' : ''}</span>
+                        <span>{match.participants_count} participant{match.participants_count !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
                     

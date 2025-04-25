@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import { Search, Filter, Calendar, MapPin, Users, Clock, Tag } from "lucide-react";
@@ -111,11 +110,11 @@ const Games = () => {
       const event = events.find(e => e.id === eventId);
       if (event) {
         try {
-          await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
+          await fetch(`https://qvujrueinyxoqfzafsbm.supabase.co/functions/v1/send-email`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabase.supabaseKey}`
+              "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dWpydWVpbnl4b3FmemFmc2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI0ODU0NTcsImV4cCI6MjA1ODA2MTQ1N30.4qDTMgRwCSuYis8hg2EO_sDfyDXotI-FWBRu0DKrehI`
             },
             body: JSON.stringify({
               to: user.email,

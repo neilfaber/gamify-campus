@@ -1,12 +1,12 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import MainLayout from "@/layouts/MainLayout";
-import { CustomButton } from "@/components/ui/custom-button";
-import { Search, Filter, Users, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import MainLayout from "@/layouts/MainLayout";
+import { Search, Filter, Users, Tag, Calendar } from "lucide-react";
+import { CustomButton } from "@/components/ui/custom-button";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Team categories
@@ -22,31 +22,33 @@ const categories = [
   "Swimming"
 ];
 
+interface TeamLeader {
+  username: string | null;
+  full_name: string | null;
+  avatar_url?: string | null;
+}
+
 interface Team {
   id: string;
   name: string;
   description: string | null;
   category: string;
-  leader_id: string;
   logo_url: string | null;
+  leader_id: string;
   created_at: string;
-  members: {
-    count: number;
-  };
-  leader: {
-    username: string | null;
-    full_name: string | null;
-  };
+  members_count: number;
+  leader: TeamLeader | null;
 }
 
 const Teams = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Teams");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const navigate = useNavigate();
   const { user } = useAuth();
   
-  // Fetch teams with member counts
-  const { data: teams = [], isLoading } = useQuery({
+  // Fetch teams
+  const { data: teamsData = [], isLoading: isLoadingTeams } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -54,28 +56,31 @@ const Teams = () => {
         .select(`
           *,
           members:team_members(count),
-          leader:leader_id(username, full_name)
+          leader_profile:leader_id(username, full_name, avatar_url)
         `)
-        .order("name");
+        .order("created_at", { ascending: false });
       
-      if (error) {
-        console.error("Error loading teams:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      return (data as Team[]).map(team => ({
+      // Transform the data to match the Team interface
+      const transformedData: Team[] = (data || []).map((team: any) => ({
         ...team,
-        members: {
-          count: team.members.length
-        }
+        members_count: team.members?.[0]?.count || 0,
+        leader: team.leader_profile?.[0] || null
       }));
+      
+      return transformedData;
     }
   });
   
-  const filteredTeams = teams.filter((team) => {
+  // Filter teams by search and category
+  const filteredTeams = teamsData.filter((team) => {
     // Filter by search query
-    const matchesSearch = team.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (team.description && team.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = !searchQuery || 
+      team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (team.description && team.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (team.leader?.full_name && team.leader.full_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (team.leader?.username && team.leader.username.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Filter by category
     const matchesCategory = selectedCategory === "All Teams" || team.category === selectedCategory;
@@ -83,24 +88,13 @@ const Teams = () => {
     return matchesSearch && matchesCategory;
   });
   
-  if (isLoading) {
-    return (
-      <MainLayout>
-        <div className="pt-32 pb-16 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-campus-blue mx-auto"></div>
-          <p className="mt-4 text-campus-neutral-600">Loading teams...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
   return (
     <MainLayout>
       <div className="pt-20 pb-16 bg-gradient-to-b from-campus-blue-light to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-campus-neutral-900 mb-4">Teams</h1>
           <p className="text-lg text-campus-neutral-600 max-w-2xl">
-            Find and join teams, or create your own team to participate in campus sports events.
+            Join existing teams or create your own to participate in events and competitions on campus.
           </p>
         </div>
       </div>
@@ -131,15 +125,12 @@ const Teams = () => {
               Filter
             </CustomButton>
             
-            <Link to="/teams/create">
-              <CustomButton
-                variant="primary"
-                size="sm"
-                iconLeft={<Plus className="h-4 w-4" />}
-              >
-                Create Team
-              </CustomButton>
-            </Link>
+            <CustomButton
+              variant="primary"
+              onClick={() => navigate("/teams/create")}
+            >
+              Create Team
+            </CustomButton>
           </div>
         </div>
         
@@ -167,67 +158,93 @@ const Teams = () => {
         </div>
         
         {/* Teams grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTeams.length > 0 ? (
-            filteredTeams.map((team) => (
-              <Link
-                to={`/teams/${team.id}`}
-                key={team.id} 
-                className="rounded-xl overflow-hidden border border-campus-neutral-200 bg-white shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="h-40 bg-gradient-to-r from-campus-blue to-campus-blue-dark flex items-center justify-center relative">
-                  {team.logo_url ? (
-                    <img 
-                      src={team.logo_url} 
-                      alt={team.name} 
-                      className="w-24 h-24 object-cover rounded-full border-4 border-white"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full border-4 border-white bg-white flex items-center justify-center">
-                      <span className="text-3xl font-bold text-campus-blue">
-                        {team.name.charAt(0)}
-                      </span>
+        {isLoadingTeams ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse bg-white rounded-lg shadow-sm p-6">
+                <div className="h-32 bg-gray-200 rounded-lg mb-4"></div>
+                <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                <div className="h-10 bg-gray-200 rounded w-full mt-4"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredTeams.length > 0 ? (
+              filteredTeams.map((team) => (
+                <div 
+                  key={team.id} 
+                  className="bg-white rounded-lg border border-campus-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="h-32 bg-gradient-to-r from-campus-blue to-campus-blue-dark flex items-center justify-center relative">
+                    {team.logo_url ? (
+                      <img 
+                        src={team.logo_url} 
+                        alt={team.name} 
+                        className="w-20 h-20 object-cover rounded-full border-4 border-white"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full border-4 border-white bg-white flex items-center justify-center">
+                        <span className="text-2xl font-bold text-campus-blue">
+                          {team.name.charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-white/80 text-xs font-medium">
+                      {team.category}
                     </div>
-                  )}
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-white/80 backdrop-blur-sm text-xs font-medium">
-                    {team.category}
                   </div>
-                </div>
-                
-                <div className="p-5">
-                  <h3 className="text-xl font-semibold text-campus-neutral-900 mb-1">{team.name}</h3>
-                  <p className="text-campus-neutral-500 text-sm mb-3">
-                    Led by {team.leader?.full_name || team.leader?.username || 'Unknown'}
-                  </p>
                   
-                  {team.description && (
-                    <p className="text-campus-neutral-600 text-sm mb-4 line-clamp-2">
-                      {team.description}
+                  <div className="p-5">
+                    <h3 className="text-xl font-semibold mb-1">{team.name}</h3>
+                    <p className="text-campus-neutral-500 text-sm mb-3">
+                      Led by {team.leader?.full_name || team.leader?.username || 'Unknown'}
                     </p>
-                  )}
-                  
-                  <div className="flex items-center justify-between text-campus-neutral-500 text-sm">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-1.5 text-campus-neutral-400" />
-                      <span>{team.members.count} member{team.members.count !== 1 ? 's' : ''}</span>
+                    
+                    {team.description && (
+                      <p className="text-campus-neutral-600 text-sm mb-4 line-clamp-2">
+                        {team.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center text-campus-neutral-500 text-sm">
+                        <Users className="h-4 w-4 mr-1.5" />
+                        <span>{team.members_count} member{team.members_count !== 1 ? 's' : ''}</span>
+                      </div>
+                      
+                      <div className="flex items-center text-campus-neutral-500 text-sm">
+                        <Calendar className="h-4 w-4 mr-1.5" />
+                        <span>{new Date(team.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
                     
-                    <span className="text-campus-blue-dark hover:underline">View Details</span>
+                    <div className="mt-4">
+                      <Link to={`/teams/${team.id}`} className="w-full">
+                        <CustomButton variant="primary" className="w-full">
+                          View Team
+                        </CustomButton>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </Link>
-            ))
-          ) : (
-            <div className="col-span-full py-12 text-center">
-              <p className="text-campus-neutral-500 text-lg mb-6">No teams found matching your criteria.</p>
-              <Link to="/teams/create">
-                <CustomButton variant="primary" iconLeft={<Plus className="h-4 w-4" />}>
-                  Create a Team
-                </CustomButton>
-              </Link>
-            </div>
-          )}
-        </div>
+              ))
+            ) : (
+              <div className="col-span-full py-12 text-center">
+                <p className="text-campus-neutral-500 text-lg">No teams found matching your criteria.</p>
+                {selectedCategory !== "All Teams" && (
+                  <p className="mt-2 text-campus-neutral-500">Try selecting a different category or creating your own team.</p>
+                )}
+                {!user && (
+                  <p className="mt-4">
+                    <Link to="/auth" className="text-campus-blue hover:underline">Sign in</Link> to create your own team.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </MainLayout>
   );

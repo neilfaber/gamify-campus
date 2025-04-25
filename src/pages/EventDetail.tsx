@@ -22,6 +22,16 @@ interface Event {
   image_url: string | null;
 }
 
+interface Registration {
+  id: string;
+  user_id: string;
+  profiles: {
+    full_name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -73,7 +83,7 @@ const EventDetail = () => {
         .select(`
           id,
           user_id,
-          profiles:user_id (
+          profiles:user_id(
             username,
             full_name,
             avatar_url
@@ -82,7 +92,7 @@ const EventDetail = () => {
         .eq("event_id", id);
       
       if (error) throw error;
-      return data;
+      return data as Registration[];
     },
     enabled: !!id,
   });
@@ -121,11 +131,11 @@ const EventDetail = () => {
       // Send confirmation email
       if (event) {
         try {
-          await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
+          await fetch(`https://qvujrueinyxoqfzafsbm.supabase.co/functions/v1/send-email`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabase.supabaseKey}`
+              "Authorization": `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2dWpydWVpbnl4b3FmemFmc2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI0ODU0NTcsImV4cCI6MjA1ODA2MTQ1N30.4qDTMgRwCSuYis8hg2EO_sDfyDXotI-FWBRu0DKrehI`
             },
             body: JSON.stringify({
               to: user.email,
