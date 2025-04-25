@@ -23,7 +23,7 @@ interface Match {
   creator?: {
     username: string | null;
     full_name: string | null;
-  } | null;
+  };
 }
 
 interface Participant {
@@ -36,7 +36,7 @@ interface Participant {
     username: string | null;
     full_name: string | null;
     avatar_url: string | null;
-  }
+  };
 }
 
 const MatchDetail = () => {
@@ -63,7 +63,12 @@ const MatchDetail = () => {
         .single();
       
       if (error) throw error;
-      return data as Match;
+      
+      // Transform the data to include the creator properly
+      return {
+        ...data,
+        creator: data.creator?.[0] || null
+      } as Match;
     },
     enabled: !!id,
   });
@@ -85,7 +90,12 @@ const MatchDetail = () => {
         .eq("match_id", id);
         
       if (error) throw error;
-      return data as Participant[];
+      
+      // Transform the data to include the profile correctly
+      return data.map(participant => ({
+        ...participant,
+        profile: participant.profile?.[0] || null
+      })) as Participant[];
     },
     enabled: !!id,
   });
@@ -209,6 +219,7 @@ const MatchDetail = () => {
         description: "Please sign in to join matches",
         variant: "destructive",
       });
+      navigate("/auth", { state: { from: `/matchmaking/${id}` } });
       return;
     }
     

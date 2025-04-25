@@ -1,10 +1,11 @@
 
-import AdminLayout from "@/layouts/AdminLayout";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import AdminLayout from "@/layouts/AdminLayout";
 import { Search, Users } from "lucide-react";
 import { CustomButton } from "@/components/ui/custom-button";
+import { cn } from "@/lib/utils";
 
 interface TeamLeader {
   username: string | null;
@@ -35,7 +36,10 @@ const AdminTeams = () => {
         .select(`
           *,
           members:team_members(count),
-          leader_profile:leader_id(username, full_name)
+          leader_profile:leader_id(
+            username,
+            full_name
+          )
         `)
         .order("created_at", { ascending: false });
       
